@@ -2,11 +2,11 @@ import time
 import json
 import requests
 import urllib.parse
-import os
 from biot_python_sdk.multipart import *
 
 API_CALL_RETRIES = 3
-RETRY_DELAY = 3 #seconds
+RETRY_DELAY = 3  # seconds
+
 
 class APIClient:
     """
@@ -52,6 +52,7 @@ class APIClient:
                 time.sleep(RETRY_DELAY)
         print(f"API request failed after {API_CALL_RETRIES} attempts. Please contact support.")
         return None
+
 
 class BiotClient:
     """
@@ -120,6 +121,7 @@ class BiotClient:
         """
         return {"accept": "application/json", "authorization": f"Bearer {self.token}"}
 
+
 class DataManager:
     """
     A manager for handling data operations with the Biot API.
@@ -172,7 +174,7 @@ class DataManager:
             json (dict, optional): Optional JSON data to include in the request.
 
         Returns:
-            dict: The JSON response data, or None if the request failed.
+            requests.Response: The JSON response data, or None if the request failed.
         """
         if method.upper() == 'DELETE' and not self.allow_delete:
             print(f"Delete operations are not allowed. Use allow_delete=True to allow DELETE operations")
@@ -211,7 +213,6 @@ class DataManager:
         search_request_encoded = urllib.parse.quote(json.dumps(search_request))
         return self._make_authenticated_request(f"/device/v1/devices/usage-sessions?searchRequest={search_request_encoded}")
 
-
     def get_ge_by_filter(self, filter):
         """
         Retrieve generic entities by a filter.
@@ -230,7 +231,9 @@ class DataManager:
 
         search_request = {"filter": filter}
         search_request_encoded = urllib.parse.quote(json.dumps(search_request))
-        return self._make_authenticated_request(f"/generic-entity/v1/generic-entities?searchRequest={search_request_encoded}").json()
+        response = self._make_authenticated_request(f"/generic-entity/v1/generic-entities?searchRequest={search_request_encoded}")
+
+        return response.json() if response else None
     
     def get_usage_session_by_id(self, session_id, device_id):
         """
@@ -262,7 +265,9 @@ class DataManager:
         """
         search_request = {"filter": filter}
         search_request_encoded = urllib.parse.quote(json.dumps(search_request))
-        return self._make_authenticated_request(f"/device/v1/devices/usage-sessions?searchRequest={search_request_encoded}").json()
+        response = self._make_authenticated_request(f"/device/v1/devices/usage-sessions?searchRequest={search_request_encoded}")
+
+        return response.json() if response else None
     
     def update_usage_session(self, usage_session_id, device_id, update_data):
         """
@@ -277,9 +282,11 @@ class DataManager:
             dict: The updated session data, or None if the request failed.
         """
 
-        return self._make_authenticated_request(f"/device/v1/devices/{device_id}/usage-sessions/{usage_session_id}", 
-                                                            method="patch",
-                                                            json=update_data)
+        return self._make_authenticated_request(
+            endpoint=f"/device/v1/devices/{device_id}/usage-sessions/{usage_session_id}",
+            method="patch",
+            json=update_data,
+        )
 
     def get_file_signedurl_by_fileid(self, file_id):
         """
@@ -293,6 +300,7 @@ class DataManager:
         """
 
         response = self._make_authenticated_request(f"/file/v1/files/{file_id}/download")
+
         return response.json().get('signedUrl') if response else None
         
     def create_generic_entity_by_template_name(self, template_name, data):
@@ -307,8 +315,13 @@ class DataManager:
             dict: The created generic entity, or None if the request failed.
         """
 
-        return self._make_authenticated_request(f"/generic-entity/v1/generic-entities/templates/{template_name}", 
-                                                            method='POST', json=data).json()
+        response = self._make_authenticated_request(
+            endpoint=f"/generic-entity/v1/generic-entities/templates/{template_name}",
+            method='POST',
+            json=data,
+        )
+
+        return response.json() if response else None
 
     def update_generic_entity_by_id(self, entity_id, updated_data):
         """
@@ -322,7 +335,11 @@ class DataManager:
             dict: The updated generic entity, or None if the request failed.
         """
 
-        return self._make_authenticated_request(f"/generic-entity/v1/generic-entities/{entity_id}", json=updated_data, method='PATCH')
+        return self._make_authenticated_request(
+            endpoint="/generic-entity/v1/generic-entities/{entity_id}",
+            json=updated_data,
+            method='PATCH',
+        )
 
     def delete_generic_entity_by_id(self, entity_id):
         """
@@ -335,7 +352,10 @@ class DataManager:
             dict: The response from the delete request, or None if the request failed.
         """
 
-        return self._make_authenticated_request(f"/generic-entity/v1/generic-entities/{entity_id}", method='DELETE')
+        return self._make_authenticated_request(
+            endpoint="/generic-entity/v1/generic-entities/{entity_id}",
+            method='DELETE',
+        )
     
     def _create_file_and_get_upload_url(self, file_name, mime_type):
         """
@@ -348,7 +368,12 @@ class DataManager:
         Returns:
             dict: The file information returned by the API, or None if the request failed.
         """
-        response = self._make_authenticated_request(f"/file/v1/files/upload", method="POST", json={"name": file_name, "mimeType": mime_type})
+        response = self._make_authenticated_request(
+            endpoint=f"/file/v1/files/upload",
+            method="POST",
+            json={"name": file_name, "mimeType": mime_type},
+        )
+
         return response.json() if response else None
     
     def upload_file(self, file_path):
@@ -458,4 +483,5 @@ class DataManager:
         response = self._make_authenticated_request(f"/file/v1/files/upload/parts/{file_id}/complete", method="POST", json={"etags": etags_to_notify})
         delete_file_parts()  
         print("Multipart File Upload Completed", response.json())
+
         return file_id
